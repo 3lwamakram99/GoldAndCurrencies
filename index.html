@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
+<title>Gold &amp; Currency vs EGP — Base DApp</title>
+
+<!-- Base / Farcaster Mini App Meta -->
+<meta name="fc:frame" content="vNext"/>
+<meta name="fc:frame:image" content="https://gold-and-currencies.vercel.app/og.png"/>
+<meta name="fc:frame:button:1" content="Check Gold Rates"/>
+<meta name="fc:frame:post_url" content="https://gold-and-currencies.vercel.app/"/>
+<meta property="og:title" content="Gold &amp; Currency vs EGP"/>
+<meta property="og:description" content="Live gold karat prices and currency rates vs Egyptian Pound on Base"/>
+<meta property="og:image" content="https://gold-and-currencies.vercel.app/og.png"/>
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+
+<!-- Ethers v5 UMD (stable, widely compatible) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+
+<style>
+:root {
+  --gold:   #D4AF37;
+  --gold2:  #F5D06B;
+  --gold3:  #A07820;
+  --bg:     #080B10;
+  --bg2:    #0D1320;
+  --bg3:    #141C2E;
+  --glass:  rgba(212,175,55,0.06);
+  --border: rgba(212,175,55,0.18);
+  --text:   #EDE8D8;
+  --muted:  #7A7260;
+  --red:    #FF4F4F;
+  --green:  #3DDB8C;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Space Mono', monospace;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+.bg-wrap { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+.bg-grad {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(212,175,55,0.14) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 40% at 100% 80%, rgba(0,82,255,0.08) 0%, transparent 60%);
+}
+.bg-grid {
+  position: absolute; inset: 0;
+  background-image: linear-gradient(rgba(212,175,55,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(212,175,55,0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+.app { position: relative; z-index: 1; max-width: 480px; margin: 0 auto; padding: 0 16px 80px; }
+header { text-align: center; padding: 36px 0 24px; }
+.logo-icon { font-size: 44px; display: inline-block; animation: glow 3s ease-in-out infinite; }
+@keyframes glow { 0%,100% { filter: drop-shadow(0 0 14px rgba(212,175,55,0.5)); } 50% { filter: drop-shadow(0 0 28px rgba(212,175,55,0.9)); } }
+h1 {
+  font-family: 'Playfair Display', serif; font-size: clamp(22px,6vw,30px); font-weight: 900;
+  background: linear-gradient(135deg, var(--gold2), var(--gold), var(--gold3));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  margin: 10px 0 4px;
+}
+.subtitle { font-size: 10px; color: var(--muted); letter-spacing: 3px; text-transform: uppercase; }
+.base-banner {
+  display: flex; align-items: center; gap: 10px;
+  background: rgba(0,82,255,0.1); border: 1px solid rgba(0,82,255,0.25);
+  border-radius: 12px; padding: 10px 14px; margin-bottom: 16px;
+  font-size: 9px; color: #7AABFF; letter-spacing: 1px;
+}
+.base-dot { width: 7px; height: 7px; border-radius: 50%; background: #0052FF; box-shadow: 0 0 8px #0052FF; flex-shrink: 0; }
+.btn-connect {
+  width: 100%; background: linear-gradient(135deg,#0052FF,#0039B3); color: #fff;
+  border: none; border-radius: 12px; padding: 15px;
+  font-family: 'Space Mono', monospace; font-size: 12px; font-weight: 700; letter-spacing: 1px;
+  cursor: pointer; margin-bottom: 16px; transition: all .2s;
+}
+.btn-connect:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,82,255,0.4); }
+.wallet-strip {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--glass); border: 1px solid var(--border);
+  border-radius: 12px; padding: 10px 14px; margin-bottom: 16px; gap: 10px;
+}
+.wallet-addr { font-size: 10px; color: var(--gold); letter-spacing: 1px; flex: 1; word-break: break-all; }
+.chain-badge {
+  display: flex; align-items: center; gap: 5px;
+  background: rgba(0,82,255,0.15); border: 1px solid rgba(0,82,255,0.3);
+  border-radius: 20px; padding: 3px 10px; font-size: 9px; color: #7AABFF; white-space: nowrap;
+}
+.chain-dot { width: 6px; height: 6px; border-radius: 50%; background: #0052FF; }
+.stats-bar { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+.stat-box { background: var(--glass); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; text-align: center; }
+.stat-val { font-family: 'Playfair Display', serif; font-size: 18px; color: var(--gold2); }
+.stat-lbl { font-size: 8px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-top: 2px; }
+.tabs {
+  display: flex; background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 12px; padding: 4px; margin-bottom: 16px;
+}
+.tab {
+  flex: 1; padding: 10px; border: none; background: transparent; color: var(--muted);
+  font-family: 'Space Mono', monospace; font-size: 10px; font-weight: 700;
+  letter-spacing: 1px; text-transform: uppercase; cursor: pointer; border-radius: 8px; transition: all .2s;
+}
+.tab.active { background: linear-gradient(135deg,rgba(212,175,55,0.2),rgba(212,175,55,0.08)); color: var(--gold); border: 1px solid rgba(212,175,55,0.3); }
+.section { display: none; }
+.section.active { display: block; }
+.card {
+  background: var(--glass); border: 1px solid var(--border);
+  border-radius: 16px; padding: 16px; margin-bottom: 12px;
+  transition: all .2s; position: relative; overflow: hidden;
+}
+.card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(212,175,55,0.4), transparent);
+}
+.card:hover { border-color: rgba(212,175,55,0.35); transform: translateY(-2px); box-shadow: 0 10px 28px rgba(0,0,0,0.4); }
+.gold-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.karat-label { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; }
+.karat-sub { font-size: 10px; color: var(--muted); letter-spacing: 2px; margin-top: 2px; }
+.purity-bar { height: 4px; border-radius: 2px; background: linear-gradient(90deg,var(--bg3),var(--gold)); margin: 4px 0 12px; position: relative; overflow: hidden; }
+.purity-bar::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg,transparent,rgba(255,255,255,0.3),transparent); animation: shimmer 2s linear infinite; }
+@keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+.price-row { display: flex; justify-content: space-between; align-items: baseline; margin: 5px 0; }
+.price-label { font-size: 10px; color: var(--muted); }
+.price-val { font-family: 'Playfair Display', serif; font-size: 18px; font-weight: 700; }
+.unit { font-size: 10px; color: var(--muted); font-family: 'Space Mono', monospace; }
+.currency-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.curr-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 12px; text-align: center; cursor: pointer; transition: all .2s; }
+.curr-card:hover { border-color: rgba(212,175,55,0.4); transform: translateY(-2px); }
+.curr-flag { font-size: 22px; margin-bottom: 4px; }
+.curr-code { font-size: 10px; font-weight: 700; letter-spacing: 2px; color: var(--gold); }
+.curr-name { font-size: 8px; color: var(--muted); margin: 2px 0 6px; }
+.curr-rate { font-family: 'Playfair Display', serif; font-size: 16px; font-weight: 700; }
+.curr-egp { font-size: 9px; color: var(--muted); }
+.curr-change { font-size: 9px; font-weight: 700; margin-top: 2px; }
+.curr-change.up { color: var(--green); } .curr-change.down { color: var(--red); }
+.btn-refresh {
+  width: 100%; background: linear-gradient(135deg,rgba(212,175,55,0.15),rgba(212,175,55,0.05));
+  border: 1px solid rgba(212,175,55,0.3); color: var(--gold); border-radius: 12px; padding: 14px;
+  font-family: 'Space Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+  cursor: pointer; margin-top: 8px; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all .2s;
+}
+.btn-refresh:hover { background: rgba(212,175,55,0.2); box-shadow: 0 0 20px rgba(212,175,55,0.15); }
+.btn-refresh:disabled { opacity: .5; cursor: not-allowed; }
+.spinner { width: 14px; height: 14px; border: 2px solid rgba(212,175,55,0.3); border-top-color: var(--gold); border-radius: 50%; animation: spin .7s linear infinite; display: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.btn-refresh.loading .spinner { display: inline-block; }
+.btn-refresh.loading .btxt { display: none; }
+.last-updated { text-align: center; font-size: 9px; color: var(--muted); margin: 8px 0; letter-spacing: 1px; }
+.skel { background: linear-gradient(90deg,var(--bg2) 25%,var(--bg3) 50%,var(--bg2) 75%); background-size: 200% 100%; animation: sk 1.5s ease-in-out infinite; border-radius: 6px; }
+@keyframes sk { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+.about-box { background: var(--glass); border: 1px solid var(--border); border-radius: 16px; padding: 18px; margin-bottom: 12px; }
+.about-box h2 { font-family: 'Playfair Display', serif; font-size: 16px; color: var(--gold2); margin-bottom: 10px; }
+.about-box p { font-size: 11px; color: var(--muted); line-height: 1.8; margin-bottom: 8px; }
+.about-box a { color: var(--gold); }
+.mono-addr { font-family: 'Space Mono', monospace; font-size: 9px; word-break: break-all; background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 10px; color: var(--gold); margin-top: 6px; }
+.toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(100px);
+  background: var(--bg3); border: 1px solid var(--border); border-radius: 12px;
+  padding: 12px 18px; font-size: 10px; color: var(--text); z-index: 9999;
+  transition: transform .3s ease; box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+  max-width: calc(100vw - 32px); text-align: center;
+}
+.toast.show { transform: translateX(-50%) translateY(0); }
+.toast a { color: var(--gold); text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<div class="bg-wrap"><div class="bg-grad"></div><div class="bg-grid"></div></div>
+
+<div class="app">
+  <header>
+    <div class="logo-icon">⚖️</div>
+    <h1>Gold &amp; Currency</h1>
+    <p class="subtitle">vs Egyptian Pound · Base Chain</p>
+  </header>
+
+  <div class="base-banner">
+    <div class="base-dot"></div>
+    <span>POWERED BY BASE BLOCKCHAIN · EVERY QUERY IS ON-CHAIN</span>
+  </div>
+
+  <div id="connectSection">
+    <button class="btn-connect" id="connectBtn">🔗 Connect Wallet (Base)</button>
+  </div>
+  <div id="walletStrip" class="wallet-strip" style="display:none">
+    <span class="wallet-addr" id="walletAddr">—</span>
+    <span class="chain-badge"><span class="chain-dot"></span>&nbsp;Base</span>
+  </div>
+
+  <div class="stats-bar" id="statsBar" style="display:none">
+    <div class="stat-box"><div class="stat-val" id="statQ">—</div><div class="stat-lbl">Total Queries</div></div>
+    <div class="stat-box"><div class="stat-val" id="statF">—</div><div class="stat-lbl">Fees (ETH)</div></div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" id="tabGold"     onclick="switchTab('Gold')">🥇 Gold</button>
+    <button class="tab"        id="tabCurrency" onclick="switchTab('Currency')">💱 Currencies</button>
+    <button class="tab"        id="tabAbout"    onclick="switchTab('About')">ℹ️ About</button>
+  </div>
+
+  <div class="section active" id="secGold">
+    <div id="goldCards"></div>
+    <p class="last-updated" id="goldUpdated"></p>
+    <button class="btn-refresh" id="goldBtn" onclick="fetchGold()">
+      <div class="spinner"></div><span class="btxt">↻ Refresh Rates (0.000001 ETH)</span>
+    </button>
+  </div>
+
+  <div class="section" id="secCurrency">
+    <div class="currency-grid" id="currGrid"></div>
+    <p class="last-updated" id="currUpdated"></p>
+    <button class="btn-refresh" id="currBtn" onclick="fetchCurrencies()">
+      <div class="spinner"></div><span class="btxt">↻ Refresh Currencies (0.000001 ETH)</span>
+    </button>
+  </div>
+
+  <div class="section" id="secAbout">
+    <div class="about-box">
+      <h2>About This DApp</h2>
+      <p>Real-time gold karat prices (24K, 21K, 18K, 14K) and 12 currency exchange rates vs the Egyptian Pound. Every query is recorded on Base blockchain.</p>
+      <p>Smart Contract on Base Mainnet:</p>
+      <div class="mono-addr">0x4A3951a3f13Ac6d5f173101C7FAA56f42343b9d7</div>
+      <p style="margin-top:10px"><a href="https://basescan.org/address/0x4A3951a3f13Ac6d5f173101C7FAA56f42343b9d7" target="_blank">View on BaseScan ↗</a></p>
+    </div>
+    <div class="about-box">
+      <h2>Owner</h2>
+      <div class="mono-addr">0x8731F248c8F810168C1b58675609667F3bf8476A</div>
+    </div>
+    <div class="about-box">
+      <h2>Gold Purity Guide</h2>
+      <p>24K = 99.9% pure &nbsp;·&nbsp; 21K = 87.5% &nbsp;·&nbsp; 18K = 75.0% &nbsp;·&nbsp; 14K = 58.3%</p>
+    </div>
+    <div class="about-box">
+      <h2>Source Code</h2>
+      <p><a href="https://github.com/3lwamakram99/GoldAndCurrencies" target="_blank">github.com/3lwamakram99/GoldAndCurrencies ↗</a></p>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── CONFIG ────────────────────────────────────────────────────────────────────
+var CONTRACT_ADDRESS = "0x4A3951a3f13Ac6d5f173101C7FAA56f42343b9d7";
+var BASE_CHAIN_ID    = 8453;
+var QUERY_FEE_ETH    = "0.000001";
+var CONTRACT_ABI     = [
+  "function recordQuery(string calldata queryType) external payable",
+  "function getStats() external view returns (uint256, uint256, uint256, uint256)"
+];
+var KARAT = { 24: 1.0, 21: 0.875, 18: 0.75, 14: 0.583 };
+var CURRENCIES = [
+  { code:"USD", name:"US Dollar",       flag:"🇺🇸" },
+  { code:"EUR", name:"Euro",            flag:"🇪🇺" },
+  { code:"GBP", name:"British Pound",   flag:"🇬🇧" },
+  { code:"SAR", name:"Saudi Riyal",     flag:"🇸🇦" },
+  { code:"AED", name:"UAE Dirham",      flag:"🇦🇪" },
+  { code:"KWD", name:"Kuwaiti Dinar",   flag:"🇰🇼" },
+  { code:"QAR", name:"Qatari Riyal",    flag:"🇶🇦" },
+  { code:"BHD", name:"Bahraini Dinar",  flag:"🇧🇭" },
+  { code:"JOD", name:"Jordanian Dinar", flag:"🇯🇴" },
+  { code:"TRY", name:"Turkish Lira",    flag:"🇹🇷" },
+  { code:"CNY", name:"Chinese Yuan",    flag:"🇨🇳" },
+  { code:"JPY", name:"Japanese Yen",    flag:"🇯🇵" }
+];
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+var _provider   = null;
+var _signer     = null;
+var _contract   = null;
+var _wallet     = null;
+var _prevRates  = {};
+var _toastTimer = null;
+
+// ── TABS ──────────────────────────────────────────────────────────────────────
+function switchTab(name) {
+  ["Gold","Currency","About"].forEach(function(n) {
+    document.getElementById("sec"+n).classList.remove("active");
+    document.getElementById("tab"+n).classList.remove("active");
+  });
+  document.getElementById("sec"+name).classList.add("active");
+  document.getElementById("tab"+name).classList.add("active");
+}
+
+// ── TOAST ─────────────────────────────────────────────────────────────────────
+function showToast(msg) {
+  var el = document.getElementById("toast");
+  el.innerHTML = msg;
+  el.classList.add("show");
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(function() { el.classList.remove("show"); }, 5000);
+}
+
+// ── WALLET ────────────────────────────────────────────────────────────────────
+document.getElementById("connectBtn").addEventListener("click", connectWallet);
+
+function connectWallet() {
+  if (typeof window.ethereum === "undefined") {
+    showToast("⚠️ No wallet found. Open in Coinbase Wallet or MetaMask.");
+    return;
+  }
+  showToast("🔄 Connecting...");
+  window.ethereum.request({ method: "eth_requestAccounts" })
+    .then(function() {
+      _provider = new ethers.providers.Web3Provider(window.ethereum);
+      return _provider.getNetwork();
+    })
+    .then(function(network) {
+      if (network.chainId !== BASE_CHAIN_ID) {
+        return switchToBase().then(function() {
+          _provider = new ethers.providers.Web3Provider(window.ethereum);
+        });
+      }
+    })
+    .then(function() {
+      _signer = _provider.getSigner();
+      return _signer.getAddress();
+    })
+    .then(function(addr) {
+      _wallet   = addr;
+      _contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, _signer);
+      onConnected();
+    })
+    .catch(function(err) {
+      showToast("❌ " + (err.message || "Connection failed"));
+    });
+}
+
+function switchToBase() {
+  var hexId = "0x" + BASE_CHAIN_ID.toString(16);
+  return window.ethereum.request({
+    method: "wallet_switchEthereumChain",
+    params: [{ chainId: hexId }]
+  }).catch(function() {
+    return window.ethereum.request({
+      method: "wallet_addEthereumChain",
+      params: [{
+        chainId: hexId,
+        chainName: "Base",
+        nativeCurrency: { name:"Ether", symbol:"ETH", decimals:18 },
+        rpcUrls: ["https://mainnet.base.org"],
+        blockExplorerUrls: ["https://basescan.org"]
+      }]
+    });
+  });
+}
+
+function onConnected() {
+  document.getElementById("connectSection").style.display = "none";
+  document.getElementById("walletStrip").style.display    = "flex";
+  document.getElementById("statsBar").style.display       = "grid";
+  var short = _wallet.slice(0,6) + "..." + _wallet.slice(-4);
+  document.getElementById("walletAddr").textContent = short;
+  showToast("✅ Connected: " + short);
+  loadStats();
+}
+
+// ── CONTRACT STATS ────────────────────────────────────────────────────────────
+function loadStats() {
+  if (!_contract) return;
+  _contract.getStats().then(function(s) {
+    document.getElementById("statQ").textContent = s[0].toString();
+    document.getElementById("statF").textContent = parseFloat(ethers.utils.formatEther(s[1])).toFixed(6);
+  }).catch(function() {});
+}
+
+// ── ON-CHAIN RECORD ───────────────────────────────────────────────────────────
+function recordOnChain(type) {
+  if (!_signer || !_contract) return;
+  _contract.recordQuery(type, { value: ethers.utils.parseEther(QUERY_FEE_ETH) })
+    .then(function(tx) {
+      showToast("⛓️ Tx sent! <a href='https://basescan.org/tx/"+tx.hash+"' target='_blank'>View ↗</a>");
+      return tx.wait();
+    })
+    .then(function() {
+      showToast("✅ Confirmed on Base!");
+      loadStats();
+    })
+    .catch(function() {
+      // User rejected or insufficient funds — silent
+    });
+}
+
+// ── GOLD ──────────────────────────────────────────────────────────────────────
+function fetchGold() {
+  var btn = document.getElementById("goldBtn");
+  btn.classList.add("loading");
+  btn.disabled = true;
+
+  // Skeleton
+  var skHtml = "";
+  [24,21,18,14].forEach(function(k) {
+    skHtml += '<div class="card"><div class="gold-header"><div>' +
+      '<div class="karat-label skel" style="width:80px;height:22px;display:block"></div>' +
+      '<div class="karat-sub skel" style="width:130px;height:11px;display:block;margin-top:5px"></div>' +
+      '</div></div>' +
+      '<div class="purity-bar" style="width:'+Math.round(KARAT[k]*100)+'%"></div>' +
+      '<div class="price-row"><span class="price-label">Per gram</span>' +
+      '<span class="price-val skel" style="width:110px;height:22px;display:block"></span></div></div>';
+  });
+  document.getElementById("goldCards").innerHTML = skHtml;
+
+  var xauUsd = null, usdEgp = null;
+
+  // Fetch USD/EGP
+  fetch("https://api.frankfurter.app/latest?from=USD&to=EGP")
+    .then(function(r) { return r.json(); })
+    .then(function(d) { usdEgp = d.rates && d.rates.EGP; })
+    .catch(function() {})
+    .then(function() {
+      // Fetch XAU/USD
+      return fetch("https://open.er-api.com/v6/latest/XAU")
+        .then(function(r) { return r.json(); })
+        .then(function(d) { xauUsd = d.rates && d.rates.USD; })
+        .catch(function() {});
+    })
+    .then(function() {
+      if (!xauUsd || isNaN(xauUsd)) xauUsd = 3220;
+      if (!usdEgp || isNaN(usdEgp)) usdEgp = 50.8;
+      var perGram24k = (xauUsd * usdEgp) / 31.1035;
+
+      var karats = [
+        { k:24, label:"24 Karat", sub:"Pure Gold · 99.9%",    color:"#F5D06B" },
+        { k:21, label:"21 Karat", sub:"Yellow Gold · 87.5%",  color:"#E8BC3A" },
+        { k:18, label:"18 Karat", sub:"Standard Gold · 75%",  color:"#D4A017" },
+        { k:14, label:"14 Karat", sub:"Alloyed Gold · 58.3%", color:"#B8860B" }
+      ];
+      var html = "";
+      karats.forEach(function(item) {
+        var priceEgp = perGram24k * KARAT[item.k];
+        var priceUsd = priceEgp / usdEgp;
+        var pct      = Math.round(KARAT[item.k] * 100);
+        html += '<div class="card">' +
+          '<div class="gold-header">' +
+            '<div><div class="karat-label" style="color:'+item.color+'">'+item.label+'</div>' +
+            '<div class="karat-sub">'+item.sub+'</div></div>' +
+            '<div style="font-size:28px">🥇</div>' +
+          '</div>' +
+          '<div class="purity-bar" style="width:'+pct+'%"></div>' +
+          '<div class="price-row"><span class="price-label">Per gram</span>' +
+            '<span class="price-val" style="color:'+item.color+'">' +
+              priceEgp.toLocaleString("en",{maximumFractionDigits:2}) +
+              ' <span class="unit">EGP</span></span></div>' +
+          '<div class="price-row"><span class="price-label">≈ USD</span>' +
+            '<span class="price-val" style="font-size:13px;color:var(--muted)">$'+priceUsd.toFixed(2)+'</span></div>' +
+          '</div>';
+      });
+      document.getElementById("goldCards").innerHTML = html;
+      document.getElementById("goldUpdated").textContent = "Updated: " + new Date().toLocaleTimeString();
+      recordOnChain("GOLD");
+    })
+    .catch(function(e) { showToast("❌ Gold error: " + e.message); })
+    .finally(function() { btn.classList.remove("loading"); btn.disabled = false; });
+}
+
+// ── CURRENCIES ────────────────────────────────────────────────────────────────
+function fetchCurrencies() {
+  var btn = document.getElementById("currBtn");
+  btn.classList.add("loading");
+  btn.disabled = true;
+
+  var skHtml = "";
+  CURRENCIES.forEach(function() {
+    skHtml += '<div class="curr-card">' +
+      '<div class="curr-flag skel" style="width:30px;height:30px;border-radius:50%;margin:0 auto 6px"></div>' +
+      '<div class="curr-code skel" style="width:40px;height:12px;margin:0 auto 4px"></div>' +
+      '<div class="curr-rate skel" style="width:65px;height:18px;margin:0 auto"></div></div>';
+  });
+  document.getElementById("currGrid").innerHTML = skHtml;
+
+  var codes = CURRENCIES.map(function(c) { return c.code; }).join(",");
+  fetch("https://api.frankfurter.app/latest?from=EGP&to=" + codes)
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      var rates = data.rates || {};
+      var egpPer = {};
+      Object.keys(rates).forEach(function(k) {
+        egpPer[k] = rates[k] > 0 ? (1 / rates[k]) : null;
+      });
+
+      var html = "";
+      CURRENCIES.forEach(function(c) {
+        var rate = egpPer[c.code];
+        var prev = _prevRates[c.code];
+        var changeHtml = "";
+        if (rate && prev) {
+          var diff = ((rate - prev) / prev) * 100;
+          if (Math.abs(diff) > 0.00001) {
+            changeHtml = '<div class="curr-change '+(diff>0?"up":"down")+'">'+(diff>0?"▲":"▼")+" "+Math.abs(diff).toFixed(3)+"%</div>";
+          }
+        }
+        var display = !rate ? "—" : rate >= 1000
+          ? rate.toLocaleString("en",{maximumFractionDigits:0})
+          : rate.toLocaleString("en",{minimumFractionDigits:2,maximumFractionDigits:2});
+        html += '<div class="curr-card" onclick="fetchCurrencies()">' +
+          '<div class="curr-flag">'+c.flag+'</div>' +
+          '<div class="curr-code">'+c.code+'</div>' +
+          '<div class="curr-name">'+c.name+'</div>' +
+          '<div class="curr-rate">'+display+'</div>' +
+          '<div class="curr-egp">EGP</div>' +
+          changeHtml + '</div>';
+      });
+      document.getElementById("currGrid").innerHTML = html;
+      document.getElementById("currUpdated").textContent = "Updated: " + new Date().toLocaleTimeString();
+      _prevRates = egpPer;
+      recordOnChain("CURRENCY");
+    })
+    .catch(function(e) { showToast("❌ Currency error: " + e.message); })
+    .finally(function() { btn.classList.remove("loading"); btn.disabled = false; });
+}
+
+// ── AUTO-INIT ─────────────────────────────────────────────────────────────────
+window.addEventListener("load", function() {
+  // Always load prices immediately — no wallet needed
+  fetchGold();
+  fetchCurrencies();
+
+  // Auto-reconnect if previously approved
+  if (typeof window.ethereum !== "undefined") {
+    window.ethereum.request({ method: "eth_accounts" })
+      .then(function(accounts) {
+        if (accounts && accounts.length > 0) {
+          _provider = new ethers.providers.Web3Provider(window.ethereum);
+          return _provider.getNetwork().then(function(net) {
+            if (net.chainId === BASE_CHAIN_ID) {
+              _signer   = _provider.getSigner();
+              return _signer.getAddress().then(function(addr) {
+                _wallet   = addr;
+                _contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, _signer);
+                onConnected();
+              });
+            }
+          });
+        }
+      })
+      .catch(function() {});
+  }
+});
+</script>
+</body>
+</html>
