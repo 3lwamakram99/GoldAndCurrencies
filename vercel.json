@@ -1,0 +1,23 @@
+{
+  "version": 2,
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "X-Frame-Options", "value": "ALLOWALL" },
+        { "key": "Content-Security-Policy", "value": "frame-ancestors *" }
+      ]
+    },
+    {
+      "source": "/.well-known/farcaster.json",
+      "headers": [
+        { "key": "Content-Type", "value": "application/json" },
+        { "key": "Cache-Control", "value": "no-cache" }
+      ]
+    }
+  ],
+  "rewrites": [
+    { "source": "/.well-known/farcaster.json", "destination": "/.well-known/farcaster.json" }
+  ]
+}

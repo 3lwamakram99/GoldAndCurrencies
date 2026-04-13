@@ -1,0 +1,19 @@
+{
+  "accountAssociation": {
+    "header": "eyJmaWQiOjEsInR5cGUiOiJjdXN0b2R5IiwiaGFzaCI6IjB4ODczMUYyNDhjOEY4MTAxNjhDMWI1ODY3NTYwOTY2N0YzYmY4NDc2QSJ9",
+    "payload": "eyJkb21haW4iOiJnb2xkLWVneXB0LmJhc2UubWluaWFwcCJ9",
+    "signature": "SIGN_WITH_WARPCAST_DEVELOPER_TOOLS"
+  },
+  "frame": {
+    "version": "next",
+    "name": "Gold & Currency vs EGP",
+    "iconUrl": "https://gold-and-currencies.vercel.app/icon.png",
+    "homeUrl": "https://gold-and-currencies.vercel.app/",
+    "imageUrl": "https://gold-and-currencies.vercel.app/og.png",
+    "buttonTitle": "Check Rates",
+    "splashImageUrl": "https://gold-and-currencies.vercel.app/splash.png",
+    "splashBackgroundColor": "#0D1117",
+    "webhookUrl": "https://gold-and-currencies.vercel.app/api/webhook"
+  },
+  "_note": "Generate real accountAssociation at https://warpcast.com/~/developers/frames"
+}
